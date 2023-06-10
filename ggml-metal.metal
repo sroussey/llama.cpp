@@ -1205,6 +1205,7 @@ kernel void kernel_mul_mat_q4_k_f32(
         sc3 = as_type<uchar2>((uint16_t)(((a[im+4] >> 0) & kmask2) | ((a[im+0] & kmask3) >> 2)));
         sc4 = as_type<uchar2>((uint16_t)(((a[im+4] >> 4) & kmask2) | ((a[im+2] & kmask3) >> 2)));
 
+        float s0 = 0.f;
         float s1 = 0.f;
         float s2 = 0.f;
         float s3 = 0.f;
