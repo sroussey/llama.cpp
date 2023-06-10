@@ -1195,7 +1195,6 @@ kernel void kernel_mul_mat_q4_k_f32(
         device const uint8_t    * q2 = q1 + 64;
         device const float      * y1 = yy + i*QK_K + y_offset;
         device const float      * y2 = y1 + 128;
-        device const uint8_t    * scales = xi->scales;
 
         const float dall = (float)(xi->d);
         const float dmin = (float)(xi->dmin);
