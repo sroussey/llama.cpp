@@ -1205,17 +1205,19 @@ kernel void kernel_mul_mat_q4_k_f32(
         sc3 = as_type<uchar2>((uint16_t)(((a[im+4] >> 0) & kmask2) | ((a[im+0] & kmask3) >> 2)));
         sc4 = as_type<uchar2>((uint16_t)(((a[im+4] >> 4) & kmask2) | ((a[im+2] & kmask3) >> 2)));
 
-        float4 s = {0.f, 0.f, 0.f, 0.f};
+        float s1 = 0.f;
+        float s2 = 0.f;
+        float s3 = 0.f;
+        float s4 = 0.f;
         float smin = 0;
         for (int l = 0; l < n; ++l) {
-
-            s[0] += y1[l] * (q1[l] & 0xF); s[1] += y1[l+32] * (q1[l] >> 4);
-            s[2] += y2[l] * (q2[l] & 0xF); s[3] += y2[l+32] * (q2[l] >> 4);
+            s0 += y1[l] * (q1[l] & 0xF);
+            s1 += y1[l+32] * (q1[l] >> 4);
+            s2 += y2[l] * (q2[l] & 0xF);
+            s3 += y2[l+32] * (q2[l] >> 4);
             smin += y1[l] * sc2[0] + y1[l+32] * sc2[1] + y2[l] * sc4[0] + y2[l+32] * sc4[1];
-
         }
-        sumf += dall * (s[0] * sc1[0] + s[1] * sc1[1] + s[2] * sc3[0] + s[3] * sc3[1]) - dmin * smin;
-
+        sumf += dall * (s0 * sc[0] + s2 * sc[2]) - dmin * (s1 * sc[1] + s3 * sc[3]);
     }
 
     sum[ith] = sumf;
