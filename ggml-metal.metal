@@ -1330,18 +1330,36 @@ kernel void kernel_mul_mat_q5_k_f32(
         sc3 = as_type<uchar2>((uint16_t)(((a[im+4] >> 0) & kmask2) | ((a[im+0] & kmask3) >> 2)));
         sc4 = as_type<uchar2>((uint16_t)(((a[im+4] >> 4) & kmask2) | ((a[im+2] & kmask3) >> 2)));
 
-        float4 s = {0.f, 0.f, 0.f, 0.f};
-        float smin = 0;
-        for (int l = 0; l < n; ++l) {
+        const float4 y1_start = {y1[0], y1[1], y1[2], y1[3]};
+        const float4 y1_end = {y1[32], y1[33], y1[34], y1[35]};
+        
+        const float4 y2_start = {y2[0], y2[1], y2[2], y2[3]};
+        const float4 y2_end = {y2[32], y2[33], y2[34], y2[35]};
+        
+        const float4 q1_mask = float4(uint4(q1[0],q1[1],q1[2],q1[3]) & 0xF);
+        const float4 q1_shift = float4(uint4(q1[0],q1[1],q1[2],q1[3]) >> 4);
+        
+        const float4 q2_mask = float4(uint4(q2[0],q2[1],q2[2],q2[3]) & 0xF);
+        const float4 q2_shift = float4(uint4(q2[0],q2[1],q2[2],q2[3]) >> 4);
 
-            s[0] += y1[l+ 0] * ((q1[l] & 0xF) + (qh[l] & hm1 ? 16 : 0));
-            s[1] += y1[l+32] * ((q1[l] >>  4) + (qh[l] & hm2 ? 16 : 0));
-            s[2] += y2[l+ 0] * ((q2[l] & 0xF) + (qh[l] & hm3 ? 16 : 0));
-            s[3] += y2[l+32] * ((q2[l] >>  4) + (qh[l] & hm4 ? 16 : 0));
-            smin += y1[l] * sc2[0] + y1[l+32] * sc2[1] + y2[l] * sc4[0] + y2[l+32] * sc4[1];
+        const float4 qh_mask_s1 = float4(qh[0] & hm1 ? 16 : 0, qh[1] & hm1 ? 16 : 0, qh[2] & hm1 ? 16 : 0, qh[3] & hm1 ? 16 : 0);
+        const float4 qh_mask_s2 = float4(qh[0] & hm2 ? 16 : 0, qh[1] & hm2 ? 16 : 0, qh[2] & hm2 ? 16 : 0, qh[3] & hm2 ? 16 : 0);
+        const float4 qh_mask_s3 = float4(qh[0] & hm3 ? 16 : 0, qh[1] & hm3 ? 16 : 0, qh[2] & hm3 ? 16 : 0, qh[3] & hm3 ? 16 : 0);
+        const float4 qh_mask_s4 = float4(qh[0] & hm4 ? 16 : 0, qh[1] & hm4 ? 16 : 0, qh[2] & hm4 ? 16 : 0, qh[3] & hm4 ? 16 : 0);
+        
+        const float4 s0_vec = y1_start * (q1_mask + qh_mask_s1);
+        const float4 s1_vec = y1_end * (q1_shift + qh_mask_s2);
+        const float4 s2_vec = y2_start * (q2_mask + qh_mask_s3);
+        const float4 s3_vec = y2_end * (q2_shift + qh_mask_s4);
+        const float4 smin_vec = y1_start * sc2[0] + y1_end * sc2[1] + y2_start * sc4[0] + y2_end * sc4[1];
 
-        }
-        sumf += dall * (s[0] * sc1[0] + s[1] * sc1[1] + s[2] * sc3[0] + s[3] * sc3[1]) - dmin * smin;
+        const float s0 = dot(s0_vec, (float4)(1));
+        const float s1 = dot(s1_vec, (float4)(1));
+        const float s2 = dot(s2_vec, (float4)(1));
+        const float s3 = dot(s3_vec, (float4)(1));
+        const float smin = dot(smin_vec, (float4)(1));
+
+        sumf += dall * (s0 * sc1[0] + s1 * sc1[1] + s2 * sc3[0] + s3 * sc3[1]) - dmin * smin;
 
     }
     sum[ith] = sumf;
