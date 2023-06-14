@@ -1196,29 +1196,38 @@ kernel void kernel_mul_mat_q4_k_f32(
         device const float      * y1 = yy + i*QK_K + y_offset;
         device const float      * y2 = y1 + 128;
 
-        const float dall = (float)(xi->d);
-        const float dmin = (float)(xi->dmin);
-
         device const uint16_t * a = (device const uint16_t *)xi->scales;
         sc1 = as_type<uchar2>((uint16_t)(a[im+0] & kmask1));
         sc2 = as_type<uchar2>((uint16_t)(a[im+2] & kmask1));
         sc3 = as_type<uchar2>((uint16_t)(((a[im+4] >> 0) & kmask2) | ((a[im+0] & kmask3) >> 2)));
         sc4 = as_type<uchar2>((uint16_t)(((a[im+4] >> 4) & kmask2) | ((a[im+2] & kmask3) >> 2)));
 
-        float s0 = 0.f;
-        float s1 = 0.f;
-        float s2 = 0.f;
-        float s3 = 0.f;
-        float s4 = 0.f;
-        float smin = 0;
-        for (int l = 0; l < n; ++l) {
-            s0 += y1[l] * (q1[l] & 0xF);
-            s1 += y1[l+32] * (q1[l] >> 4);
-            s2 += y2[l] * (q2[l] & 0xF);
-            s3 += y2[l+32] * (q2[l] >> 4);
-            smin += y1[l] * sc2[0] + y1[l+32] * sc2[1] + y2[l] * sc4[0] + y2[l+32] * sc4[1];
-        }
-        sumf += dall * (s0 * sc[0] + s2 * sc[2]) - dmin * (s1 * sc[1] + s3 * sc[3]);
+        const float4 y1_start = {y1[0], y1[1], y1[2], y1[3]};
+        const float4 y1_end = {y1[32], y1[33], y1[34], y1[35]};
+        
+        const float4 y2_start = {y2[0], y2[1], y2[2], y2[3]};
+        const float4 y2_end = {y2[32], y2[33], y2[34], y2[35]};
+        
+        const float4 q1_mask = float4(uint4(q1[0],q1[1],q1[2],q1[3]) & 0xF);
+        const float4 q1_shift = float4(uint4(q1[0],q1[1],q1[2],q1[3]) >> 4);
+        
+        const float4 q2_mask = float4(uint4(q2[0],q2[1],q2[2],q2[3]) & 0xF);
+        const float4 q2_shift = float4(uint4(q2[0],q2[1],q2[2],q2[3]) >> 4);
+        
+        const float4 s0_vec = y1_start * q1_mask;
+        const float4 s1_vec = y1_end * q1_shift;
+        const float4 s2_vec = y2_start * q2_mask;
+        const float4 s3_vec = y2_end * q2_shift;
+        const float4 smin_vec = y1_start * sc2[0] + y1_end * sc2[1] + y2_start * sc4[0] + y2_end * sc4[1];
+
+        const float s0 = dot(s0_vec, (float4)(1));
+        const float s1 = dot(s1_vec, (float4)(1));
+        const float s2 = dot(s2_vec, (float4)(1));
+        const float s3 = dot(s3_vec, (float4)(1));
+        const float smin = dot(smin_vec, (float4)(1));
+        
+        sumf += xi->d * (s0 * sc1[0] + s1 * sc1[1] + s2 * sc3[0] + s3 * sc3[1]) - xi->dmin * smin;
+
     }
 
     sum[ith] = sumf;
